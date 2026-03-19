@@ -12,3 +12,7 @@ run = "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/new-get-bin
 [tasks.gen-types]
 description = "Generate TypeScript d.ts files for invoke API"
 run = "zig build gen-types"
+
+[tasks.bin]
+description = "Run src/bin/<name>.zig as `mise run bin -- <name>`"
+run = "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/run-bin.ps1"
