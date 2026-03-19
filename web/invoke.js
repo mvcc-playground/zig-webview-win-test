@@ -10,6 +10,5 @@
  * >}
  */
 export async function invoke(command, payload) {
-  const result = await window.__mini.invoke(command, payload);
-  return /** @type {any} */ (result);
+  return window.__mini.invoke(command, payload);
 }

@@ -92,12 +92,33 @@ pub fn build(b: *std.Build) void {
     // by passing `--prefix` or `-p`.
     b.installArtifact(exe);
 
+    const gen_types_exe = b.addExecutable(.{
+        .name = "gen_ts_types",
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("src/tools/gen_ts_types.zig"),
+            .target = target,
+            .optimize = optimize,
+            .imports = &.{
+                .{ .name = "zig_teste", .module = mod },
+                .{ .name = "commands", .module = b.createModule(.{
+                    .root_source_file = b.path("src/commands/mod.zig"),
+                    .target = target,
+                    .optimize = optimize,
+                }) },
+            },
+        }),
+    });
+    const gen_types_cmd = b.addRunArtifact(gen_types_exe);
+    const gen_types_step = b.step("gen-types", "Generate TypeScript type definitions for invoke");
+    gen_types_step.dependOn(&gen_types_cmd.step);
+
     // This creates a top level step. Top level steps have a name and can be
     // invoked by name when running `zig build` (e.g. `zig build run`).
     // This will evaluate the `run` step rather than the default step.
     // For a top level step to actually do something, it must depend on other
     // steps (e.g. a Run step, as we will see in a moment).
     const run_step = b.step("run", "Run the app");
+    run_step.dependOn(&gen_types_cmd.step);
 
     // This creates a RunArtifact step in the build graph. A RunArtifact step
     // invokes an executable compiled by Zig. Steps will only be executed by the
@@ -189,26 +210,6 @@ pub fn build(b: *std.Build) void {
     const test_step = b.step("test", "Run tests");
     test_step.dependOn(&run_mod_tests.step);
     test_step.dependOn(&run_exe_tests.step);
-
-    const gen_types_exe = b.addExecutable(.{
-        .name = "gen_ts_types",
-        .root_module = b.createModule(.{
-            .root_source_file = b.path("src/tools/gen_ts_types.zig"),
-            .target = target,
-            .optimize = optimize,
-            .imports = &.{
-                .{ .name = "zig_teste", .module = mod },
-                .{ .name = "commands", .module = b.createModule(.{
-                    .root_source_file = b.path("src/commands/mod.zig"),
-                    .target = target,
-                    .optimize = optimize,
-                }) },
-            },
-        }),
-    });
-    const gen_types_cmd = b.addRunArtifact(gen_types_exe);
-    const gen_types_step = b.step("gen-types", "Generate TypeScript type definitions for invoke");
-    gen_types_step.dependOn(&gen_types_cmd.step);
 
     // Just like flags, top level steps are also listed in the `--help` menu.
     //
