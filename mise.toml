@@ -2,7 +2,7 @@
 zig = "0.15.2"
 
 [tasks.dev]
-description = "Build and run the Zig app"
+description = "Generate TypeScript types and run the Zig app"
 run = "zig build run"
 
 [tasks.new-bin]
@@ -12,6 +12,10 @@ run = "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/new-get-bin
 [tasks.gen-types]
 description = "Generate TypeScript d.ts files for invoke API"
 run = "zig build gen-types"
+
+[tasks."command:new"]
+description = "Create src/commands/<name>.zig and auto-register in the command registry"
+run = "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/new-command.ps1"
 
 [tasks.bin]
 description = "Run src/bin/<name>.zig as `mise run bin -- <name>`"
