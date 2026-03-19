@@ -84,6 +84,7 @@ pub fn build(b: *std.Build) void {
             },
         }),
     });
+    linkMiniWebview(exe, b, target);
 
     // This declares intent for the executable to be installed into the
     // install prefix when running `zig build` (i.e. when executing the default
@@ -115,6 +116,51 @@ pub fn build(b: *std.Build) void {
     // command itself, like this: `zig build run -- arg1 arg2 etc`
     if (b.args) |args| {
         run_cmd.addArgs(args);
+    }
+
+    // Auto-register `src/bin/*.zig` as `zig build run-<file-stem>`.
+    // This mirrors Rust's `cargo run --bin <name>` style workflow.
+    {
+        var bin_dir = std.fs.cwd().openDir("src/bin", .{ .iterate = true }) catch |err| switch (err) {
+            error.FileNotFound => null,
+            else => @panic("Failed to open src/bin"),
+        };
+        if (bin_dir) |*dir| {
+            defer dir.close();
+            var it = dir.iterate();
+            while (it.next() catch @panic("Failed to iterate src/bin")) |entry| {
+                if (entry.kind != .file) continue;
+                if (!std.mem.endsWith(u8, entry.name, ".zig")) continue;
+
+                const stem = std.fs.path.stem(entry.name);
+                const rel_path = b.fmt("src/bin/{s}", .{entry.name});
+
+                const bin_exe = b.addExecutable(.{
+                    .name = stem,
+                    .root_module = b.createModule(.{
+                        .root_source_file = b.path(rel_path),
+                        .target = target,
+                        .optimize = optimize,
+                        .imports = &.{
+                            .{ .name = "zig_teste", .module = mod },
+                            .{ .name = "win32", .module = zigwin32.module("win32") },
+                        },
+                    }),
+                });
+
+                b.installArtifact(bin_exe);
+
+                const run_bin_name = b.fmt("run-{s}", .{stem});
+                const run_bin_desc = b.fmt("Run src/bin/{s}", .{entry.name});
+                const run_bin_step = b.step(run_bin_name, run_bin_desc);
+                const run_bin_cmd = b.addRunArtifact(bin_exe);
+                run_bin_step.dependOn(&run_bin_cmd.step);
+                run_bin_cmd.step.dependOn(b.getInstallStep());
+                if (b.args) |args| {
+                    run_bin_cmd.addArgs(args);
+                }
+            }
+        }
     }
 
     // Creates an executable that will run `test` blocks from the provided module.
@@ -155,4 +201,42 @@ pub fn build(b: *std.Build) void {
     //
     // Lastly, the Zig build system is relatively simple and self-contained,
     // and reading its source code will allow you to master it.
+}
+
+fn linkMiniWebview(exe: *std.Build.Step.Compile, b: *std.Build, target: std.Build.ResolvedTarget) void {
+    exe.addIncludePath(b.path("deps/webview/core/include"));
+    exe.addIncludePath(b.path("deps/mswebview2/include"));
+    exe.addIncludePath(b.path("deps/webview/compatibility/mingw/include"));
+    exe.addCSourceFile(.{
+        .file = b.path("src/native/webview_bridge.cc"),
+        .flags = &.{
+            "-std=c++14",
+            "-DWEBVIEW_STATIC",
+        },
+    });
+    exe.linkLibCpp();
+
+    const os_tag = target.result.os.tag;
+    switch (os_tag) {
+        .windows => {
+            exe.linkSystemLibrary("advapi32");
+            exe.linkSystemLibrary("ole32");
+            exe.linkSystemLibrary("shell32");
+            exe.linkSystemLibrary("shlwapi");
+            exe.linkSystemLibrary("user32");
+            exe.linkSystemLibrary("version");
+        },
+        .macos => {
+            exe.linkFramework("Cocoa");
+            exe.linkFramework("WebKit");
+            exe.linkFramework("Foundation");
+            exe.linkSystemLibrary("dl");
+        },
+        .linux => {
+            exe.linkSystemLibrary("gtk-3");
+            exe.linkSystemLibrary("webkit2gtk-4.1");
+            exe.linkSystemLibrary("dl");
+        },
+        else => {},
+    }
 }

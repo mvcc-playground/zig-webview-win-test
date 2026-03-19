@@ -4,3 +4,7 @@ zig = "0.15.2"
 [tasks.dev]
 description = "Build and run the Zig app"
 run = "zig build run"
+
+[tasks.new-bin]
+description = "Create src/bin/<name>.zig that prints mouse position"
+run = "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/new-get-bin.ps1"

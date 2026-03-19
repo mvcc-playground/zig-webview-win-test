@@ -1,0 +1,10 @@
+# Zig build artifacts
+.zig-cache/
+zig-out/
+
+# Local tools
+.mise.local.toml
+
+# Temporary SDK package files
+deps/mswebview2/*.nupkg
+deps/mswebview2/*.zip
