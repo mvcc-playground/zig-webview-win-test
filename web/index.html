@@ -68,14 +68,16 @@
       </div>
       <pre id="out">Aguardando chamada...</pre>
     </main>
-    <script>
+    <script type="module">
+      import { invoke } from "./invoke.js";
+
       const out = document.getElementById("out");
       const btn = document.getElementById("btn");
       const msg = document.getElementById("msg");
 
       btn.addEventListener("click", async () => {
         try {
-          const response = await window.invoke("ping", { message: msg.value });
+          const response = await invoke("ping", { message: msg.value });
           out.textContent = JSON.stringify(response, null, 2);
         } catch (err) {
           out.textContent = `Erro: ${String(err)}`;

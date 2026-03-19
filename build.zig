@@ -190,6 +190,26 @@ pub fn build(b: *std.Build) void {
     test_step.dependOn(&run_mod_tests.step);
     test_step.dependOn(&run_exe_tests.step);
 
+    const gen_types_exe = b.addExecutable(.{
+        .name = "gen_ts_types",
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("src/tools/gen_ts_types.zig"),
+            .target = target,
+            .optimize = optimize,
+            .imports = &.{
+                .{ .name = "zig_teste", .module = mod },
+                .{ .name = "commands", .module = b.createModule(.{
+                    .root_source_file = b.path("src/commands/mod.zig"),
+                    .target = target,
+                    .optimize = optimize,
+                }) },
+            },
+        }),
+    });
+    const gen_types_cmd = b.addRunArtifact(gen_types_exe);
+    const gen_types_step = b.step("gen-types", "Generate TypeScript type definitions for invoke");
+    gen_types_step.dependOn(&gen_types_cmd.step);
+
     // Just like flags, top level steps are also listed in the `--help` menu.
     //
     // The Zig build system is entirely implemented in userland, which means
