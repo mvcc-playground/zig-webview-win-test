@@ -90,10 +90,14 @@
             const msg = document.getElementById("msg");
 
             async function invokeMini(command, payload) {
-                if (!window.__mini || typeof window.__mini.invoke !== "function") {
-                    throw new Error("Bridge nativa indisponível (window.__mini.invoke)");
+                if (
+                    typeof window.invoke !== "function"
+                ) {
+                    throw new Error(
+                        "Bridge nativa indisponível (window.invoke)",
+                    );
                 }
-                return window.__mini.invoke(command, payload);
+                return window.invoke(command, payload);
             }
 
             btn.addEventListener("click", async () => {

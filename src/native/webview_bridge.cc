@@ -28,12 +28,6 @@ extern "C" int mini_webview_run(const char *start_url) {
   webview_set_title(w, "zig mini-tauri");
   webview_set_size(w, 980, 680, WEBVIEW_HINT_NONE);
   webview_bind(w, "invoke", invoke_handler, w);
-
-  const char *bootstrap_js =
-      "window.__mini = {"
-      "  invoke: (cmd, payload) => window.invoke(cmd, payload)"
-      "};";
-  webview_init(w, bootstrap_js);
   webview_navigate(w, start_url);
   webview_run(w);
   webview_destroy(w);

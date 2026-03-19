@@ -1,4 +1,5 @@
 // @ts-check
+/// <reference path="./types/global.generated.d.ts" />
 
 /**
  * @template {keyof import('./types/commands.generated').CommandMap} T
@@ -10,5 +11,5 @@
  * >}
  */
 export async function invoke(command, payload) {
-  return window.__mini.invoke(command, payload);
+  return window.invoke(command, payload);
 }
