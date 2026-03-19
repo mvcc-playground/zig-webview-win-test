@@ -1,0 +1,6 @@
+[tools]
+zig = "0.15.2"
+
+[tasks.dev]
+description = "Build and run the Zig app"
+run = "zig build run"
