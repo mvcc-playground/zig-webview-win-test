@@ -1,18 +1,21 @@
-pub const name = "sum";
-
-pub const Request = struct {
-    a: i64 = 0,
-    b: i64 = 0,
-};
-
-pub const Response = struct {
-    command: []const u8 = name,
+pub const SumOutput = struct {
+    command: []const u8 = "sum",
     result: i64,
 };
 
-pub fn handle(req: Request) Response {
+pub fn sum(a: i64, b: i64) SumOutput {
     return .{
-        .command = name,
-        .result = req.a + req.b,
+        .command = "sum",
+        .result = a + b,
     };
 }
+
+pub const commands = .{
+    .sum = sum,
+};
+
+pub const command_meta = .{
+    .sum = .{
+        .arg_names = .{ "a", "b" },
+    },
+};

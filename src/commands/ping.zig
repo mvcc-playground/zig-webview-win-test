@@ -1,22 +1,24 @@
 const std = @import("std");
 
-pub const name = "ping";
-
-pub const Request = struct {
+pub const Input = struct {
     message: []const u8 = "hello from web",
 };
 
-pub const Response = struct {
+pub const Output = struct {
     command: []const u8 = "ping",
     echoed: []const u8,
     timestamp_ms: i64,
 };
 
-pub fn handle(req: Request) Response {
-    const message = if (req.message.len == 0) "hello from web" else req.message;
+pub fn ping(input: Input) Output {
+    const message = if (input.message.len == 0) "hello from web" else input.message;
     return .{
-        .command = name,
+        .command = "ping",
         .echoed = message,
         .timestamp_ms = std.time.milliTimestamp(),
     };
 }
+
+pub const commands = .{
+    .ping = ping,
+};

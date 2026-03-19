@@ -4,12 +4,9 @@
 /**
  * @template {keyof import('./types/commands.generated').CommandMap} T
  * @param {T} command
- * @param {import('./types/commands.generated').CommandMap[T]['request']} payload
- * @returns {Promise<
- *   { ok: true, data: import('./types/commands.generated').CommandMap[T]['response'] } |
- *   { ok: false, error: string, details?: string }
- * >}
+ * @param {...import('./types/commands.generated').CommandMap[T]['args']} args
+ * @returns {Promise<import('./types/commands.generated').InvokeTuple<T>>}
  */
-export async function invoke(command, payload) {
-  return window.invoke(command, payload);
+export async function invoke(command, ...args) {
+  return window.invoke(command, ...args);
 }

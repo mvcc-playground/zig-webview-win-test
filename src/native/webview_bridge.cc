@@ -12,7 +12,7 @@ static void invoke_handler(const char *seq, const char *req, void *arg) {
   std::string out(8192, '\0');
   int status = mini_handle_invoke(req, &out[0], out.size());
   if (status != 0) {
-    const char *fallback = "{\"ok\":false,\"error\":\"native_failure\"}";
+    const char *fallback = "[null,{\"code\":\"native_failure\",\"message\":\"Native invoke bridge failed\"}]";
     webview_return((webview_t)arg, seq, 1, fallback);
     return;
   }

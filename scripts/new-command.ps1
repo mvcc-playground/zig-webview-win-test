@@ -3,8 +3,8 @@ param(
     [string]$Name
 )
 
-$slug = $Name.ToLowerInvariant() -replace '[^a-z0-9]+', '-'
-$slug = $slug.Trim('-')
+$slug = $Name.ToLowerInvariant() -replace '[^a-z0-9]+', '_'
+$slug = $slug.Trim('_')
 if ([string]::IsNullOrWhiteSpace($slug)) {
     throw "Invalid command name. Use letters and numbers."
 }
@@ -25,41 +25,39 @@ if (Test-Path $commandFile) {
 }
 
 $template = @"
-const std = @import("std");
-
-pub const name = "$slug";
-
-pub const Request = struct {
+pub const Input = struct {
     input: []const u8 = "",
 };
 
-pub const Response = struct {
-    command: []const u8 = name,
+pub const Output = struct {
+    command: []const u8 = "$slug",
     ok: bool,
     echoed: []const u8,
-    timestamp_ms: i64,
 };
 
-pub fn handle(req: Request) Response {
+pub fn $slug(input: Input) Output {
     return .{
-        .command = name,
+        .command = "$slug",
         .ok = true,
-        .echoed = req.input,
-        .timestamp_ms = std.time.milliTimestamp(),
+        .echoed = input.input,
     };
 }
+
+pub const commands = .{
+    .$slug = $slug,
+};
 "@
 
 Set-Content -Path $commandFile -Value $template -NoNewline
 
 $registry = Get-Content -Path $registryPath -Raw
-$startMarker = "// @commands:start"
-$endMarker = "// @commands:end"
+$startMarker = "// @modules:start"
+$endMarker = "// @modules:end"
 
 $startPos = $registry.IndexOf($startMarker)
 $endPos = $registry.IndexOf($endMarker)
 if ($startPos -lt 0 -or $endPos -lt 0 -or $endPos -le $startPos) {
-    throw "Registry markers not found in src/commands/registry.zig"
+    throw "Registry markers not found in src/commands/registry.zig (expected @modules markers)"
 }
 
 $insertPos = $registry.IndexOf($endMarker)

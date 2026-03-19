@@ -1,18 +1,21 @@
-pub const name = "multiplication";
-
-pub const Request = struct {
-    first: i32 = 0,
-    second: i32 = 0,
-};
-
-pub const Response = struct {
-    command: []const u8 = name,
+pub const Output = struct {
+    command: []const u8 = "multiplication",
     result: i32,
 };
 
-pub fn handle(req: Request) Response {
+pub fn multiplication(a: i32, b: i32) Output {
     return .{
-        .command = name,
-        .result = req.first * req.second,
+        .command = "multiplication",
+        .result = a * b,
     };
 }
+
+pub const commands = .{
+    .multiplication = multiplication,
+};
+
+pub const command_meta = .{
+    .multiplication = .{
+        .arg_names = .{ "a", "b" },
+    },
+};

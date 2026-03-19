@@ -89,7 +89,7 @@
             const btn = document.getElementById("btn");
             const msg = document.getElementById("msg");
 
-            async function invokeMini(command, payload) {
+            async function invokeMini(command, ...args) {
                 if (
                     typeof window.invoke !== "function"
                 ) {
@@ -97,15 +97,19 @@
                         "Bridge nativa indisponível (window.invoke)",
                     );
                 }
-                return window.invoke(command, payload);
+                return window.invoke(command, ...args);
             }
 
             btn.addEventListener("click", async () => {
                 try {
-                    const response = await invokeMini("ping", {
+                    const [data, error] = await invokeMini("ping", {
                         message: msg.value,
                     });
-                    out.textContent = JSON.stringify(response, null, 2);
+                    out.textContent = JSON.stringify(
+                        error ? { error } : { data },
+                        null,
+                        2,
+                    );
                 } catch (err) {
                     out.textContent = `Erro: ${String(err)}`;
                 }

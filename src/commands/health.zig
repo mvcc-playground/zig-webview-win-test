@@ -1,17 +1,17 @@
-pub const name = "health";
-
-pub const Request = struct {};
-
-pub const Response = struct {
-    command: []const u8 = name,
+pub const Output = struct {
+    command: []const u8 = "health",
     ok: bool,
     service: []const u8,
 };
 
-pub fn handle(_: Request) Response {
+pub fn health() Output {
     return .{
-        .command = name,
+        .command = "health",
         .ok = true,
         .service = "zig-mini-runtime",
     };
 }
+
+pub const commands = .{
+    .health = health,
+};
