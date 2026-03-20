@@ -1,4 +1,5 @@
 const std = @import("std");
+const app_url = @import("app_url.zig");
 const commands = @import("commands/mod.zig");
 
 pub fn main() !void {
@@ -8,33 +9,18 @@ pub fn main() !void {
     }
     const allocator = gpa_state.allocator();
 
-    const url = try htmlFileUrl(allocator, "web/index.html");
+    const url = app_url.resolve(allocator) catch |err| {
+        if (err == error.FrontendEntryNotFound) {
+            std.log.err("frontend entry not found. Run `mise build-frontend` or set FRONTEND_URL for dev.", .{});
+        }
+        return err;
+    };
     defer allocator.free(url);
 
     const exit_code = mini_webview_run(url.ptr);
     if (exit_code != 0) {
         return error.WebviewRunFailed;
     }
-}
-
-fn htmlFileUrl(allocator: std.mem.Allocator, rel_path: []const u8) ![:0]u8 {
-    const abs_path = try std.fs.cwd().realpathAlloc(allocator, rel_path);
-    defer allocator.free(abs_path);
-
-    var normalized = try allocator.alloc(u8, abs_path.len);
-    defer allocator.free(normalized);
-
-    for (abs_path, 0..) |ch, i| {
-        normalized[i] = if (ch == '\\') '/' else ch;
-    }
-
-    const prefix = "file:///";
-    const out_len = prefix.len + normalized.len;
-    var out = try allocator.alloc(u8, out_len + 1);
-    @memcpy(out[0..prefix.len], prefix);
-    @memcpy(out[prefix.len..out_len], normalized);
-    out[out_len] = 0;
-    return out[0..out_len :0];
 }
 
 export fn mini_handle_invoke(req_json: [*:0]const u8, out_json: [*]u8, out_len: usize) callconv(.c) c_int {

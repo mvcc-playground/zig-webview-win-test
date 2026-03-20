@@ -5,6 +5,11 @@ zig-out/
 # Local tools
 .mise.local.toml
 
+# Frontend build artifacts
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+
 # Temporary SDK package files
 deps/mswebview2/*.nupkg
 deps/mswebview2/*.zip

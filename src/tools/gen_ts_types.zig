@@ -6,8 +6,8 @@ pub fn main() !void {
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
-    const commands_path = "web/types/commands.generated.d.ts";
-    const global_path = "web/types/global.generated.d.ts";
+    const commands_path = "frontend/types/commands.generated.d.ts";
+    const global_path = "frontend/types/global.generated.d.ts";
 
     var cmd_buf = std.array_list.Managed(u8).init(allocator);
     defer cmd_buf.deinit();

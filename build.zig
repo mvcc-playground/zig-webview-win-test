@@ -4,6 +4,8 @@ const bin_steps = @import("build/bin_steps.zig");
 pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
+    const frontend_url = b.option([]const u8, "frontend-url", "Frontend dev URL override");
+    const frontend_dist = b.option([]const u8, "frontend-dist", "Frontend dist index.html path override") orelse "frontend/dist/index.html";
     const zigwin32 = b.dependency("zigwin32", .{});
     const win32_module = zigwin32.module("win32");
 
@@ -12,17 +14,25 @@ pub fn build(b: *std.Build) void {
         .target = target,
     });
 
+    const app_options = b.addOptions();
+    app_options.addOption(?[]const u8, "frontend_url", frontend_url);
+    app_options.addOption([]const u8, "frontend_dist", frontend_dist);
+    app_module.addOptions("build_options", app_options);
+
+    const exe_root_module = b.createModule(.{
+        .root_source_file = b.path("src/main.zig"),
+        .target = target,
+        .optimize = optimize,
+        .imports = &.{
+            .{ .name = "zig_teste", .module = app_module },
+            .{ .name = "win32", .module = win32_module },
+        },
+    });
+    exe_root_module.addOptions("build_options", app_options);
+
     const exe = b.addExecutable(.{
         .name = "zig_teste",
-        .root_module = b.createModule(.{
-            .root_source_file = b.path("src/main.zig"),
-            .target = target,
-            .optimize = optimize,
-            .imports = &.{
-                .{ .name = "zig_teste", .module = app_module },
-                .{ .name = "win32", .module = win32_module },
-            },
-        }),
+        .root_module = exe_root_module,
     });
     linkMiniWebview(exe, b, target);
     b.installArtifact(exe);

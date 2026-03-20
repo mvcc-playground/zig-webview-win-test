@@ -1,1 +1,1 @@
-/// <reference path="./web/types/global.generated.d.ts" />
+/// <reference path="./frontend/types/global.generated.d.ts" />
