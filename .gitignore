@@ -6,9 +6,11 @@ zig-out/
 .mise.local.toml
 
 # Frontend build artifacts
-frontend/node_modules/
-frontend/dist/
-frontend/.vite/
+node_modules/
+dist/
+.vite/
+frontend-legacy/
+tsconfig.tsbuildinfo
 
 # Temporary SDK package files
 deps/mswebview2/*.nupkg

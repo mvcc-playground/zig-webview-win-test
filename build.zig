@@ -5,12 +5,12 @@ pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
     const frontend_url = b.option([]const u8, "frontend-url", "Frontend dev URL override");
-    const frontend_dist = b.option([]const u8, "frontend-dist", "Frontend dist index.html path override") orelse "frontend/dist/index.html";
+    const frontend_dist = b.option([]const u8, "frontend-dist", "Frontend dist index.html path override") orelse "dist/index.html";
     const zigwin32 = b.dependency("zigwin32", .{});
     const win32_module = zigwin32.module("win32");
 
     const app_module = b.addModule("zig_teste", .{
-        .root_source_file = b.path("src/root.zig"),
+        .root_source_file = b.path("src-zig/root.zig"),
         .target = target,
     });
 
@@ -20,7 +20,7 @@ pub fn build(b: *std.Build) void {
     app_module.addOptions("build_options", app_options);
 
     const exe_root_module = b.createModule(.{
-        .root_source_file = b.path("src/main.zig"),
+        .root_source_file = b.path("src-zig/main.zig"),
         .target = target,
         .optimize = optimize,
         .imports = &.{
@@ -38,7 +38,7 @@ pub fn build(b: *std.Build) void {
     b.installArtifact(exe);
 
     const commands_module = b.createModule(.{
-        .root_source_file = b.path("src/commands/mod.zig"),
+        .root_source_file = b.path("src-zig/commands/mod.zig"),
         .target = target,
         .optimize = optimize,
     });
@@ -46,7 +46,7 @@ pub fn build(b: *std.Build) void {
     const gen_types_exe = b.addExecutable(.{
         .name = "gen_ts_types",
         .root_module = b.createModule(.{
-            .root_source_file = b.path("src/tools/gen_ts_types.zig"),
+            .root_source_file = b.path("src-zig/tools/gen_ts_types.zig"),
             .target = target,
             .optimize = optimize,
             .imports = &.{
@@ -67,7 +67,7 @@ pub fn build(b: *std.Build) void {
         .win32_module = win32_module,
     });
 
-    const run_step = b.step("run", "Run app, or use -Dbin=<name> to run src/bin/<name>.zig");
+    const run_step = b.step("run", "Run app, or use -Dbin=<name> to run src-zig/bin/<name>.zig");
     run_step.dependOn(&gen_types_cmd.step);
 
     const run_cmd = b.addRunArtifact(exe);
@@ -100,7 +100,7 @@ fn linkMiniWebview(exe: *std.Build.Step.Compile, b: *std.Build, target: std.Buil
     exe.addIncludePath(b.path("deps/mswebview2/include"));
     exe.addIncludePath(b.path("deps/webview/compatibility/mingw/include"));
     exe.addCSourceFile(.{
-        .file = b.path("src/native/webview_bridge.cc"),
+        .file = b.path("src-zig/native/webview_bridge.cc"),
         .flags = &.{ "-std=c++14", "-DWEBVIEW_STATIC" },
     });
     exe.linkLibCpp();

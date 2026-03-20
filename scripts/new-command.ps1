@@ -10,7 +10,7 @@ if ([string]::IsNullOrWhiteSpace($slug)) {
 }
 
 $projectRoot = Split-Path -Parent $PSScriptRoot
-$commandsDir = Join-Path $projectRoot "src/commands"
+$commandsDir = Join-Path $projectRoot "src-zig/commands"
 $registryPath = Join-Path $commandsDir "registry.zig"
 $commandFile = Join-Path $commandsDir "$slug.zig"
 
@@ -57,7 +57,7 @@ $endMarker = "// @modules:end"
 $startPos = $registry.IndexOf($startMarker)
 $endPos = $registry.IndexOf($endMarker)
 if ($startPos -lt 0 -or $endPos -lt 0 -or $endPos -le $startPos) {
-    throw "Registry markers not found in src/commands/registry.zig (expected @modules markers)"
+    throw "Registry markers not found in src-zig/commands/registry.zig (expected @modules markers)"
 }
 
 $insertPos = $registry.IndexOf($endMarker)

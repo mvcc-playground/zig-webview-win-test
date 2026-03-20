@@ -4,14 +4,15 @@ import path from "node:path";
 import process from "node:process";
 
 const rootDir = process.cwd();
-const frontendDir = path.join(rootDir, "frontend");
 const devUrl = process.env.FRONTEND_URL ?? "http://127.0.0.1:5173";
-const vitePort = new URL(devUrl).port || "5173";
+const devPort = resolvePort(devUrl);
 
-await ensureFrontendDeps(frontendDir);
+await ensureFrontendDeps(rootDir);
+await run("zig", ["build", "gen-types"], rootDir);
+await terminateExistingListener(devPort);
 
 const vite = spawn("bun", ["run", "dev"], {
-  cwd: frontendDir,
+  cwd: rootDir,
   stdio: "inherit",
 });
 
@@ -76,13 +77,25 @@ async function ensureFrontendDeps(dir) {
 async function waitForServer(url, timeoutMs) {
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
-    try {
-      const res = await fetch(url);
-      if (res.ok || res.status < 500) return;
-    } catch {}
+    if (await canReachServer(url)) return;
     await delay(250);
   }
   throw new Error(`Vite dev server did not start at ${url} within ${timeoutMs}ms`);
+}
+
+async function canReachServer(url) {
+  try {
+    const res = await fetch(url);
+    return res.ok || res.status < 500;
+  } catch {
+    return false;
+  }
+}
+
+function resolvePort(url) {
+  const parsed = new URL(url);
+  if (parsed.port) return Number(parsed.port);
+  return parsed.protocol === "https:" ? 443 : 80;
 }
 
 function delay(ms) {
@@ -109,6 +122,58 @@ async function run(command, args, cwd) {
   if (code !== 0) {
     throw new Error(`${command} ${args.join(" ")} failed with exit code ${code}`);
   }
+}
+
+async function terminateExistingListener(port) {
+  const pid = await findListeningPid(port);
+  if (!pid || pid === process.pid) {
+    return;
+  }
+
+  console.log(`[dev] Terminating existing process on port ${port} (PID ${pid})`);
+  await terminateProcessTree({ pid, exitCode: null, killed: false });
+}
+
+async function findListeningPid(port) {
+  if (process.platform === "win32") {
+    const stdout = await capture(
+      "powershell",
+      [
+        "-NoProfile",
+        "-Command",
+        `(Get-NetTCPConnection -LocalPort ${port} -State Listen -ErrorAction SilentlyContinue | Select-Object -ExpandProperty OwningProcess -Unique)`,
+      ],
+      rootDir,
+    );
+    const match = stdout.trim().match(/\d+/);
+    return match ? Number(match[0]) : null;
+  }
+
+  const stdout = await capture("sh", ["-lc", `lsof -ti tcp:${port} -sTCP:LISTEN || true`], rootDir);
+  const match = stdout.trim().match(/\d+/);
+  return match ? Number(match[0]) : null;
+}
+
+async function capture(command, args, cwd) {
+  const child = spawn(command, args, {
+    cwd,
+    stdio: ["ignore", "pipe", "pipe"],
+  });
+
+  let stdout = "";
+  let stderr = "";
+  child.stdout.on("data", (chunk) => {
+    stdout += String(chunk);
+  });
+  child.stderr.on("data", (chunk) => {
+    stderr += String(chunk);
+  });
+
+  const code = await waitForExit(child);
+  if (code !== 0) {
+    throw new Error(stderr || `${command} ${args.join(" ")} failed with exit code ${code}`);
+  }
+  return stdout;
 }
 
 async function terminateProcessTree(child) {

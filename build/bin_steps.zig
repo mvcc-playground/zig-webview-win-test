@@ -16,25 +16,25 @@ pub const Result = struct {
 
 pub fn add(config: Config) Result {
     const b = config.b;
-    const selected_bin = b.option([]const u8, "bin", "Run src/bin/<name>.zig with `zig build run -Dbin=<name>`");
+    const selected_bin = b.option([]const u8, "bin", "Run src-zig/bin/<name>.zig with `zig build run -Dbin=<name>`");
 
     var selected_step: ?*std.Build.Step = null;
     var missing_step: ?*std.Build.Step = null;
 
-    var bin_dir = std.fs.cwd().openDir("src/bin", .{ .iterate = true }) catch |err| switch (err) {
+    var bin_dir = std.fs.cwd().openDir("src-zig/bin", .{ .iterate = true }) catch |err| switch (err) {
         error.FileNotFound => null,
-        else => @panic("failed to open src/bin"),
+        else => @panic("failed to open src-zig/bin"),
     };
 
     if (bin_dir) |*dir| {
         defer dir.close();
         var it = dir.iterate();
-        while (it.next() catch @panic("failed to iterate src/bin")) |entry| {
+        while (it.next() catch @panic("failed to iterate src-zig/bin")) |entry| {
             if (entry.kind != .file) continue;
             if (!std.mem.endsWith(u8, entry.name, ".zig")) continue;
 
             const stem = std.fs.path.stem(entry.name);
-            const rel_path = b.fmt("src/bin/{s}", .{entry.name});
+            const rel_path = b.fmt("src-zig/bin/{s}", .{entry.name});
 
             const bin_exe = b.addExecutable(.{
                 .name = stem,
@@ -53,7 +53,7 @@ pub fn add(config: Config) Result {
 
             const run_step = b.step(
                 b.fmt("run-{s}", .{stem}),
-                b.fmt("Run src/bin/{s}", .{entry.name}),
+                b.fmt("Run src-zig/bin/{s}", .{entry.name}),
             );
             const run_cmd = b.addRunArtifact(bin_exe);
             run_step.dependOn(&run_cmd.step);
@@ -68,12 +68,12 @@ pub fn add(config: Config) Result {
         }
     }
 
-    const run_bin_step = b.step("run-bin", "Run src/bin/<name>.zig (use -Dbin=<name>)");
+    const run_bin_step = b.step("run-bin", "Run src-zig/bin/<name>.zig (use -Dbin=<name>)");
     if (selected_bin) |selected_name| {
         if (selected_step) |step| {
             run_bin_step.dependOn(step);
         } else {
-            const fail = b.addFail(b.fmt("No bin named '{s}' in src/bin", .{selected_name}));
+            const fail = b.addFail(b.fmt("No bin named '{s}' in src-zig/bin", .{selected_name}));
             run_bin_step.dependOn(&fail.step);
             missing_step = &fail.step;
         }

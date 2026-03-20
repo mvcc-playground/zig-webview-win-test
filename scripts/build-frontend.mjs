@@ -4,10 +4,9 @@ import path from "node:path";
 import process from "node:process";
 
 const rootDir = process.cwd();
-const frontendDir = path.join(rootDir, "frontend");
 
-await ensureFrontendDeps(frontendDir);
-await run("bun", ["run", "build"], frontendDir);
+await ensureFrontendDeps(rootDir);
+await run("bun", ["run", "build"], rootDir);
 
 async function ensureFrontendDeps(dir) {
   try {
