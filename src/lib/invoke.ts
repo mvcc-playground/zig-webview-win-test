@@ -2,13 +2,58 @@
 /// <reference path="../types-generated/global.generated.d.ts" />
 
 import type {
+  CommandArgs,
   CommandMap,
-  InvokeTuple,
+  CommandReturn,
+  NativeInvokeFailure,
 } from "../types-generated/commands.generated";
+
+export class InvokeRuntimeError extends Error {
+  code: string;
+  details?: string | null;
+
+  constructor(failure: NativeInvokeFailure, cause?: unknown) {
+    super(failure.message);
+    this.name = "InvokeRuntimeError";
+    this.code = failure.code;
+    this.details = failure.details ?? null;
+    if (cause !== undefined) {
+      (this as Error & { cause?: unknown }).cause = cause;
+    }
+  }
+}
+
+function isNativeInvokeFailure(value: unknown): value is NativeInvokeFailure {
+  if (!value || typeof value !== "object") return false;
+  const candidate = value as Record<string, unknown>;
+  return typeof candidate.code === "string" && typeof candidate.message === "string";
+}
+
+function parseNativeInvokeFailure(value: unknown): NativeInvokeFailure | null {
+  if (isNativeInvokeFailure(value)) return value;
+  if (typeof value !== "string") return null;
+  try {
+    const parsed: unknown = JSON.parse(value);
+    return isNativeInvokeFailure(parsed) ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+function normalizeInvokeError(error: unknown): Error {
+  const failure = parseNativeInvokeFailure(error);
+  if (failure) return new InvokeRuntimeError(failure, error);
+  if (error instanceof Error) return error;
+  return new Error(typeof error === "string" ? error : String(error));
+}
 
 export async function invoke<T extends keyof CommandMap>(
   command: T,
-  ...args: CommandMap[T]["args"]
-): Promise<InvokeTuple<T>> {
-  return window.invoke(command, ...args);
+  ...args: CommandArgs<T>
+): Promise<CommandReturn<T>> {
+  try {
+    return await window.invoke(command, ...args);
+  } catch (error) {
+    throw normalizeInvokeError(error);
+  }
 }

@@ -8,15 +8,27 @@ pub const registered_modules = .{
     @import("health.zig"),
     @import("multiplication.zig"),
     @import("math.zig"),
+    @import("identity.zig"),
     // @modules:end
+};
+
+pub const NativeFailure = struct {
+    code: []const u8,
+    message: []const u8,
+    details: ?[]const u8 = null,
+};
+
+pub const DispatchResult = union(enum) {
+    success: []u8,
+    failure: NativeFailure,
 };
 
 pub const CommandSpec = struct {
     name: []const u8,
     Fn: type,
     ArgsTuple: type,
-    Output: type,
-    invoke: *const fn (allocator: std.mem.Allocator, args: []const std.json.Value) anyerror![]u8,
+    ReturnType: type,
+    invoke: *const fn (allocator: std.mem.Allocator, args: []const std.json.Value) anyerror!DispatchResult,
 };
 
 pub const specs = blk: {
@@ -34,13 +46,19 @@ pub const specs = blk: {
     break :blk out;
 };
 
-pub fn dispatch(allocator: std.mem.Allocator, command: []const u8, args: []const std.json.Value) ![]u8 {
+pub fn dispatch(allocator: std.mem.Allocator, command: []const u8, args: []const std.json.Value) !DispatchResult {
     inline for (specs) |spec| {
         if (std.mem.eql(u8, command, spec.name)) {
             return spec.invoke(allocator, args);
         }
     }
-    return tupleErr(allocator, "unknown_command", "Command not found", command);
+    return .{
+        .failure = .{
+            .code = "unknown_command",
+            .message = "Command not found",
+            .details = command,
+        },
+    };
 }
 
 pub fn jsonAlloc(allocator: std.mem.Allocator, value: anytype) ![]u8 {
@@ -64,7 +82,7 @@ fn makeSpec(comptime command_name: []const u8, comptime func: anytype) CommandSp
         .name = command_name,
         .Fn = Fn,
         .ArgsTuple = std.meta.ArgsTuple(Fn),
-        .Output = unwrapErrorUnionPayload(raw_output),
+        .ReturnType = unwrapErrorUnionPayload(raw_output),
         .invoke = makeInvoke(command_name, func),
     };
 }
@@ -72,9 +90,9 @@ fn makeSpec(comptime command_name: []const u8, comptime func: anytype) CommandSp
 fn makeInvoke(
     comptime command_name: []const u8,
     comptime func: anytype,
-) *const fn (allocator: std.mem.Allocator, args: []const std.json.Value) anyerror![]u8 {
+) *const fn (allocator: std.mem.Allocator, args: []const std.json.Value) anyerror!DispatchResult {
     return struct {
-        fn invoke(allocator: std.mem.Allocator, args: []const std.json.Value) ![]u8 {
+        fn invoke(allocator: std.mem.Allocator, args: []const std.json.Value) !DispatchResult {
             const Fn = @TypeOf(func);
             const ArgsTuple = std.meta.ArgsTuple(Fn);
             const fn_info = @typeInfo(Fn).@"fn";
@@ -82,47 +100,39 @@ fn makeInvoke(
 
             var parsed_args: ArgsTuple = undefined;
             if (comptime isSingleStructArg(Fn)) {
-                if (args.len > 1) return tupleErr(allocator, "invalid_args", "Expected a single JSON object argument", command_name);
+                if (args.len > 1) {
+                    return failure("invalid_args", "Expected a single JSON object argument", command_name);
+                }
                 const only = fn_info.params[0].type orelse @compileError("anytype parameters are not supported");
                 const arg_value: std.json.Value = if (args.len == 0) .{ .null = {} } else args[0];
                 parsed_args[0] = parseJsonValue(allocator, only, arg_value) catch |err| {
-                    return tupleErr(allocator, "invalid_args", "Failed to parse object input", @errorName(err));
+                    return failure("invalid_args", "Failed to parse object input", @errorName(err));
                 };
             } else if (fn_info.params.len == 0) {
                 if (args.len != 0) {
-                    return tupleErr(allocator, "invalid_arity", "This command does not accept arguments", command_name);
+                    return failure("invalid_arity", "This command does not accept arguments", command_name);
                 }
             } else {
                 if (args.len != fn_info.params.len) {
-                    return tupleErr(
-                        allocator,
-                        "invalid_arity",
-                        "Argument count does not match command signature",
-                        command_name,
-                    );
+                    return failure("invalid_arity", "Argument count does not match command signature", command_name);
                 }
                 inline for (fn_info.params, 0..) |param, i| {
                     const ParamT = param.type orelse @compileError("anytype parameters are not supported");
                     parsed_args[i] = parseJsonValue(allocator, ParamT, args[i]) catch |err| {
-                        return tupleErr(
-                            allocator,
-                            "invalid_args",
-                            "Failed to parse positional argument",
-                            @errorName(err),
-                        );
+                        return failure("invalid_args", "Failed to parse positional argument", @errorName(err));
                     };
                 }
             }
 
             if (comptime isErrorUnion(raw_output)) {
                 const out = @call(.auto, func, parsed_args) catch |err| {
-                    return tupleErr(allocator, "command_error", "Command returned an error", @errorName(err));
+                    return failure("command_error", "Command returned an unhandled error", @errorName(err));
                 };
-                return tupleOk(allocator, out);
+                return .{ .success = try jsonAlloc(allocator, out) };
             }
 
             const out = @call(.auto, func, parsed_args);
-            return tupleOk(allocator, out);
+            return .{ .success = try jsonAlloc(allocator, out) };
         }
     }.invoke;
 }
@@ -134,22 +144,14 @@ fn parseJsonValue(allocator: std.mem.Allocator, comptime T: type, value: std.jso
     });
 }
 
-fn tupleOk(allocator: std.mem.Allocator, data: anytype) ![]u8 {
-    return jsonAlloc(allocator, .{
-        data,
-        @as(?InvokeError, null),
-    });
-}
-
-fn tupleErr(allocator: std.mem.Allocator, code: []const u8, message: []const u8, details: ?[]const u8) ![]u8 {
-    return jsonAlloc(allocator, .{
-        @as(?std.json.Value, null),
-        InvokeError{
+fn failure(code: []const u8, message: []const u8, details: ?[]const u8) DispatchResult {
+    return .{
+        .failure = .{
             .code = code,
             .message = message,
             .details = details,
         },
-    });
+    };
 }
 
 fn unwrapErrorUnionPayload(comptime T: type) type {
@@ -170,13 +172,7 @@ fn isSingleStructArg(comptime Fn: type) bool {
     return @typeInfo(only) == .@"struct";
 }
 
-pub const InvokeError = struct {
-    code: []const u8,
-    message: []const u8,
-    details: ?[]const u8 = null,
-};
-
-test "dispatch supports object argument command" {
+test "dispatch returns object command result directly" {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();
     const allocator = arena.allocator();
@@ -190,39 +186,46 @@ test "dispatch supports object argument command" {
     const args = [_]std.json.Value{arg_obj};
 
     const out = try dispatch(allocator, "soma", args[0..]);
-    defer allocator.free(out);
-
-    const parsed = try std.json.parseFromSlice(std.json.Value, allocator, out, .{});
-    defer parsed.deinit();
-    try std.testing.expect(parsed.value == .array);
-    try std.testing.expect(parsed.value.array.items.len == 2);
-    try std.testing.expect(parsed.value.array.items[0] == .object);
-    const data = parsed.value.array.items[0].object;
-    try std.testing.expect(data.get("result") != null);
-    try std.testing.expect(parsed.value.array.items[1] == .null);
+    switch (out) {
+        .failure => |err| {
+            std.debug.print("unexpected failure: {s}\n", .{err.message});
+            return error.TestUnexpectedResult;
+        },
+        .success => |json| {
+            const parsed = try std.json.parseFromSlice(std.json.Value, allocator, json, .{});
+            defer parsed.deinit();
+            try std.testing.expect(parsed.value == .object);
+            const data = parsed.value.object;
+            const result = data.get("result") orelse return error.TestUnexpectedResult;
+            try std.testing.expect(result == .integer);
+            try std.testing.expectEqual(@as(i64, 11), result.integer);
+        },
+    }
 }
 
-test "dispatch supports positional arguments command" {
+test "dispatch returns scalar command result directly" {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();
     const allocator = arena.allocator();
 
-    const args = [_]std.json.Value{ .{ .integer = 12 }, .{ .integer = 21 } };
+    const args = [_]std.json.Value{ .{ .integer = 21 }, .{ .integer = 12 } };
 
-    const out = try dispatch(allocator, "multiplication", args[0..]);
-    defer allocator.free(out);
-
-    const parsed = try std.json.parseFromSlice(std.json.Value, allocator, out, .{});
-    defer parsed.deinit();
-    try std.testing.expect(parsed.value == .array);
-    const data = parsed.value.array.items[0].object;
-    const result = data.get("result") orelse return error.TestUnexpectedResult;
-    try std.testing.expect(result == .integer);
-    try std.testing.expectEqual(@as(i64, 252), result.integer);
-    try std.testing.expect(parsed.value.array.items[1] == .null);
+    const out = try dispatch(allocator, "sub", args[0..]);
+    switch (out) {
+        .failure => |err| {
+            std.debug.print("unexpected failure: {s}\n", .{err.message});
+            return error.TestUnexpectedResult;
+        },
+        .success => |json| {
+            const parsed = try std.json.parseFromSlice(std.json.Value, allocator, json, .{});
+            defer parsed.deinit();
+            try std.testing.expect(parsed.value == .integer);
+            try std.testing.expectEqual(@as(i64, 9), parsed.value.integer);
+        },
+    }
 }
 
-test "dispatch returns tuple error when arity is invalid" {
+test "dispatch returns structured failure when arity is invalid" {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();
     const allocator = arena.allocator();
@@ -230,15 +233,37 @@ test "dispatch returns tuple error when arity is invalid" {
     const args = [_]std.json.Value{.{ .integer = 12 }};
 
     const out = try dispatch(allocator, "multiplication", args[0..]);
-    defer allocator.free(out);
+    switch (out) {
+        .success => return error.TestUnexpectedResult,
+        .failure => |err| {
+            try std.testing.expectEqualStrings("invalid_arity", err.code);
+            try std.testing.expectEqualStrings("Argument count does not match command signature", err.message);
+        },
+    }
+}
 
-    const parsed = try std.json.parseFromSlice(std.json.Value, allocator, out, .{});
-    defer parsed.deinit();
-    try std.testing.expect(parsed.value == .array);
-    try std.testing.expect(parsed.value.array.items[0] == .null);
-    try std.testing.expect(parsed.value.array.items[1] == .object);
-    const err_obj = parsed.value.array.items[1].object;
-    const code = err_obj.get("code") orelse return error.TestUnexpectedResult;
-    try std.testing.expect(code == .string);
-    try std.testing.expectEqualStrings("invalid_arity", code.string);
+test "dispatch serializes tagged union return for domain results" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const allocator = arena.allocator();
+
+    const args = [_]std.json.Value{.{ .string = "xxx" }};
+
+    const out = try dispatch(allocator, "getFullName", args[0..]);
+    switch (out) {
+        .failure => |err| {
+            std.debug.print("unexpected failure: {s}\n", .{err.message});
+            return error.TestUnexpectedResult;
+        },
+        .success => |json| {
+            const parsed = try std.json.parseFromSlice(std.json.Value, allocator, json, .{});
+            defer parsed.deinit();
+            try std.testing.expect(parsed.value == .object);
+            const result = parsed.value.object.get("error") orelse return error.TestUnexpectedResult;
+            try std.testing.expect(result == .object);
+            const message = result.object.get("message") orelse return error.TestUnexpectedResult;
+            try std.testing.expect(message == .string);
+            try std.testing.expectEqualStrings("lastName 'xxx' is blocked", message.string);
+        },
+    }
 }
