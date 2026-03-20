@@ -16,22 +16,31 @@ const vite = spawn("bun", ["run", "dev"], {
 });
 
 let cleaned = false;
-const cleanup = () => {
+let zig = null;
+
+const cleanup = async () => {
   if (cleaned) return;
   cleaned = true;
-  if (!vite.killed) {
-    vite.kill("SIGTERM");
-  }
+  await Promise.allSettled([
+    terminateProcessTree(zig),
+    terminateProcessTree(vite),
+  ]);
 };
 
-process.on("SIGINT", cleanup);
-process.on("SIGTERM", cleanup);
-process.on("exit", cleanup);
+process.on("SIGINT", async () => {
+  await cleanup();
+  process.exit(130);
+});
+
+process.on("SIGTERM", async () => {
+  await cleanup();
+  process.exit(143);
+});
 
 try {
   await waitForServer(devUrl, 20_000);
 
-  const zig = spawn("zig", ["build", "run"], {
+  zig = spawn("zig", ["build", "run"], {
     cwd: rootDir,
     stdio: "inherit",
     env: {
@@ -40,11 +49,18 @@ try {
     },
   });
 
+  vite.once("exit", async (code) => {
+    if (!cleaned) {
+      await terminateProcessTree(zig);
+      process.exit(code ?? 1);
+    }
+  });
+
   const exitCode = await waitForExit(zig);
-  cleanup();
+  await cleanup();
   process.exit(exitCode);
 } catch (error) {
-  cleanup();
+  await cleanup();
   console.error(String(error));
   process.exit(1);
 }
@@ -75,6 +91,10 @@ function delay(ms) {
 
 function waitForExit(child) {
   return new Promise((resolve, reject) => {
+    if (!child) {
+      resolve(0);
+      return;
+    }
     child.on("error", reject);
     child.on("exit", (code) => resolve(code ?? 1));
   });
@@ -88,5 +108,27 @@ async function run(command, args, cwd) {
   const code = await waitForExit(child);
   if (code !== 0) {
     throw new Error(`${command} ${args.join(" ")} failed with exit code ${code}`);
+  }
+}
+
+async function terminateProcessTree(child) {
+  if (!child || child.exitCode !== null || child.killed || child.pid == null) {
+    return;
+  }
+
+  if (process.platform === "win32") {
+    await run("taskkill", ["/PID", String(child.pid), "/T", "/F"], rootDir).catch(() => {});
+    return;
+  }
+
+  child.kill("SIGTERM");
+  const graceful = await Promise.race([
+    waitForExit(child).then(() => true),
+    delay(1_500).then(() => false),
+  ]);
+
+  if (!graceful && child.exitCode === null) {
+    child.kill("SIGKILL");
+    await waitForExit(child).catch(() => {});
   }
 }
