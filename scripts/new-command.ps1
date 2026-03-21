@@ -10,15 +10,15 @@ if ([string]::IsNullOrWhiteSpace($slug)) {
 }
 
 $projectRoot = Split-Path -Parent $PSScriptRoot
-$commandsDir = Join-Path $projectRoot "src-zig/commands"
-$registryPath = Join-Path $commandsDir "registry.zig"
+$commandsDir = Join-Path $projectRoot "example/src-zig/commands"
+$registryPath = Join-Path $commandsDir "mod.zig"
 $commandFile = Join-Path $commandsDir "$slug.zig"
 
 if (-not (Test-Path $commandsDir)) {
     throw "Commands directory not found: $commandsDir"
 }
 if (-not (Test-Path $registryPath)) {
-    throw "Registry file not found: $registryPath"
+    throw "Command module file not found: $registryPath"
 }
 if (Test-Path $commandFile) {
     throw "Command file already exists: $commandFile"
@@ -51,24 +51,20 @@ pub const commands = .{
 Set-Content -Path $commandFile -Value $template -NoNewline
 
 $registry = Get-Content -Path $registryPath -Raw
-$startMarker = "// @modules:start"
 $endMarker = "// @modules:end"
-
-$startPos = $registry.IndexOf($startMarker)
-$endPos = $registry.IndexOf($endMarker)
-if ($startPos -lt 0 -or $endPos -lt 0 -or $endPos -le $startPos) {
-    throw "Registry markers not found in src-zig/commands/registry.zig (expected @modules markers)"
+$insertPos = $registry.IndexOf($endMarker)
+if ($insertPos -lt 0) {
+    throw "Module markers not found in example/src-zig/commands/mod.zig"
 }
 
-$insertPos = $registry.IndexOf($endMarker)
 $importLine = "    @import(`"$slug.zig`"),`r`n"
 if ($registry.Contains($importLine)) {
-    throw "Command already registered in registry: $slug"
+    throw "Command already registered in commands/mod.zig: $slug"
 }
 
 $updated = $registry.Insert($insertPos, $importLine)
 Set-Content -Path $registryPath -Value $updated -NoNewline
 
 Write-Host "Created command file: $commandFile"
-Write-Host "Registered command: $slug"
+Write-Host "Registered command in: $registryPath"
 Write-Host "Next: zig build gen-types"

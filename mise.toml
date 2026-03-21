@@ -2,29 +2,29 @@
 zig = "0.15.2"
 
 [tasks.dev]
-description = "Start Vite dev server and run the Zig app"
-run = "node ./scripts/dev.mjs"
+description = "Start the example app in dev mode using the reusable Zig core"
+run = "zig build dev"
 
 [tasks.build]
-description = "Generate types, build the static frontend, and build the Zig app"
-run = "node ./scripts/build.mjs"
+description = "Generate types, build the example frontend, and build the Zig example app"
+run = "zig build"
 
 [tasks.build-frontend]
-description = "Build the Vite frontend into dist"
-run = "node ./scripts/build-frontend.mjs"
+description = "Build the Vite example frontend into example/app/dist"
+run = "zig build build-frontend"
 
 [tasks.new-bin]
-description = "Create src-zig/bin/get-<name>.zig that prints mouse position"
+description = "Create example/src-zig/bin/get-<name>.zig that prints mouse position"
 run = "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/new-get-bin.ps1"
 
 [tasks.gen-types]
-description = "Generate TypeScript d.ts files for invoke API"
+description = "Generate the example app TypeScript bridge from Zig commands"
 run = "zig build gen-types"
 
 [tasks."command:new"]
-description = "Create src-zig/commands/<name>.zig and auto-register in the command registry"
+description = "Create example/src-zig/commands/<name>.zig and register it in the example command module"
 run = "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/new-command.ps1"
 
 [tasks.bin]
-description = "Run src-zig/bin/<name>.zig as `mise run bin -- <name>`"
+description = "Run example/src-zig/bin/<name>.zig as `mise run bin -- <name>`"
 run = "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/run-bin.ps1"

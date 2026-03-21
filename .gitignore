@@ -8,9 +8,11 @@ zig-out/
 # Frontend build artifacts
 node_modules/
 dist/
+example/app/dist/
 .vite/
 frontend-legacy/
 tsconfig.tsbuildinfo
+example/app/tsconfig.tsbuildinfo
 
 # Temporary SDK package files
 deps/mswebview2/*.nupkg

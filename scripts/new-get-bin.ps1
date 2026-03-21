@@ -11,7 +11,7 @@ if ([string]::IsNullOrWhiteSpace($slug)) {
 }
 
 $projectRoot = Split-Path -Parent $PSScriptRoot
-$binDir = Join-Path $projectRoot "src-zig/bin"
+$binDir = Join-Path $projectRoot "example/src-zig/bin"
 New-Item -ItemType Directory -Force -Path $binDir | Out-Null
 
 $filePath = Join-Path $binDir ("get-{0}.zig" -f $slug)
