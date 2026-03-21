@@ -3,7 +3,7 @@
   "configVersion": 1,
   "workspaces": {
     "": {
-      "name": "mini-example-app",
+      "name": "desktop-example",
       "dependencies": {
         "react": "^19.1.1",
         "react-dom": "^19.1.1",

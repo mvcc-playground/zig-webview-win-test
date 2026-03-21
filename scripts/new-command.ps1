@@ -10,7 +10,7 @@ if ([string]::IsNullOrWhiteSpace($slug)) {
 }
 
 $projectRoot = Split-Path -Parent $PSScriptRoot
-$commandsDir = Join-Path $projectRoot "example/src-zig/commands"
+$commandsDir = Join-Path $projectRoot "example/desktop-example/src-zig/commands"
 $registryPath = Join-Path $commandsDir "mod.zig"
 $commandFile = Join-Path $commandsDir "$slug.zig"
 
@@ -54,7 +54,7 @@ $registry = Get-Content -Path $registryPath -Raw
 $endMarker = "// @modules:end"
 $insertPos = $registry.IndexOf($endMarker)
 if ($insertPos -lt 0) {
-    throw "Module markers not found in example/src-zig/commands/mod.zig"
+    throw "Module markers not found in example/desktop-example/src-zig/commands/mod.zig"
 }
 
 $importLine = "    @import(`"$slug.zig`"),`r`n"

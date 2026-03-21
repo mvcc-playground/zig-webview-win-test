@@ -3,10 +3,10 @@
 This repository keeps the generated TypeScript bridge files versioned on purpose.
 
 Files:
-- `example/app/src/types-generated/commands.generated.d.ts`
-- `example/app/src/types-generated/global.generated.d.ts`
-- `example/app/src/lib/invoke.ts`
-- `example/app/src/lib/commands.ts`
+- `example/desktop-example/src/types-generated/commands.generated.d.ts`
+- `example/desktop-example/src/types-generated/global.generated.d.ts`
+- `example/desktop-example/src/lib/invoke.ts`
+- `example/desktop-example/src/lib/commands.ts`
 
 Reason:
 - keep the example app understandable without running codegen first

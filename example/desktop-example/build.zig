@@ -1,6 +1,12 @@
 const std = @import("std");
 
-pub const AppConfig = struct {
+pub const Layout = struct {
+    core_dir: []const u8,
+    deps_dir: []const u8,
+    project_dir: []const u8,
+};
+
+const AppConfig = struct {
     b: *std.Build,
     target: std.Build.ResolvedTarget,
     optimize: std.builtin.OptimizeMode,
@@ -23,14 +29,13 @@ pub const AppConfig = struct {
     invoke_binding: []const u8 = "__mini_invoke__",
 };
 
-pub const AppArtifacts = struct {
+const AppArtifacts = struct {
     exe: *std.Build.Step.Compile,
     run_cmd: *std.Build.Step.Run,
     gen_types_cmd: *std.Build.Step.Run,
-    commands_module: *std.Build.Module,
 };
 
-pub fn addApp(config: AppConfig) AppArtifacts {
+fn addApp(config: AppConfig) AppArtifacts {
     const b = config.b;
 
     const mini_module = b.addModule("mini", .{
@@ -99,11 +104,10 @@ pub fn addApp(config: AppConfig) AppArtifacts {
         .exe = exe,
         .run_cmd = run_cmd,
         .gen_types_cmd = gen_types_cmd,
-        .commands_module = commands_module,
     };
 }
 
-pub fn addBinSteps(
+fn addBinSteps(
     b: *std.Build,
     target: std.Build.ResolvedTarget,
     optimize: std.builtin.OptimizeMode,
@@ -217,4 +221,117 @@ fn linkMiniWebview(exe: *std.Build.Step.Compile, config: AppConfig) void {
         },
         else => {},
     }
+}
+
+pub fn addProjectSteps(
+    b: *std.Build,
+    target: std.Build.ResolvedTarget,
+    optimize: std.builtin.OptimizeMode,
+    layout: Layout,
+) void {
+    const frontend_url = b.option([]const u8, "frontend-url", "Frontend dev URL override");
+    const frontend_dist_default = b.fmt("{s}/dist/index.html", .{layout.project_dir});
+    const frontend_dist = b.option([]const u8, "frontend-dist", "Frontend dist index.html path override") orelse frontend_dist_default;
+    const frontend_dir = b.path(layout.project_dir);
+
+    const app = addApp(.{
+        .b = b,
+        .target = target,
+        .optimize = optimize,
+        .name = "desktop_example",
+        .commands_root_source = b.path(b.fmt("{s}/src-zig/commands/mod.zig", .{layout.project_dir})),
+        .mini_root_source = b.path(b.fmt("{s}/src/root.zig", .{layout.core_dir})),
+        .mini_app_main_source = b.path(b.fmt("{s}/src/app_main.zig", .{layout.core_dir})),
+        .mini_gen_types_source = b.path(b.fmt("{s}/src/tools/gen_ts_types.zig", .{layout.core_dir})),
+        .mini_bridge_source = b.path(b.fmt("{s}/native/webview_bridge.cc", .{layout.core_dir})),
+        .deps_webview_include = b.path(b.fmt("{s}/webview/core/include", .{layout.deps_dir})),
+        .deps_mswebview2_include = b.path(b.fmt("{s}/mswebview2/include", .{layout.deps_dir})),
+        .deps_webview_compat_include = b.path(b.fmt("{s}/webview/compatibility/mingw/include", .{layout.deps_dir})),
+        .frontend_url = frontend_url,
+        .frontend_dist = frontend_dist,
+        .generated_commands_path = b.fmt("{s}/src/types-generated/commands.generated.d.ts", .{layout.project_dir}),
+        .generated_global_path = b.fmt("{s}/src/types-generated/global.generated.d.ts", .{layout.project_dir}),
+        .generated_invoke_path = b.fmt("{s}/src/lib/invoke.ts", .{layout.project_dir}),
+        .generated_client_path = b.fmt("{s}/src/lib/commands.ts", .{layout.project_dir}),
+        .app_title = "zig mini toolkit desktop example",
+    });
+
+    const gen_types_step = b.step("gen-types", "Generate TypeScript type definitions for the desktop example");
+    gen_types_step.dependOn(&app.gen_types_cmd.step);
+
+    const ensure_frontend_deps = b.addSystemCommand(&.{ "bun", "install" });
+    ensure_frontend_deps.setCwd(frontend_dir);
+
+    const frontend_build = b.addSystemCommand(&.{ "bun", "run", "build" });
+    frontend_build.setCwd(frontend_dir);
+    frontend_build.step.dependOn(&ensure_frontend_deps.step);
+    frontend_build.step.dependOn(&app.gen_types_cmd.step);
+
+    const build_frontend_step = b.step("build-frontend", "Build the desktop example frontend");
+    build_frontend_step.dependOn(&frontend_build.step);
+
+    const bin_dir_path = b.fmt("{s}/src-zig/bin", .{layout.project_dir});
+    const bins = addBinSteps(b, target, optimize, bin_dir_path);
+
+    const run_step = b.step(
+        "run",
+        b.fmt("Run the desktop example, or use -Dbin=<name> to run {s}/<name>.zig", .{bin_dir_path}),
+    );
+    if (bins.selected_requested) {
+        if (bins.selected_step) |selected| {
+            run_step.dependOn(selected);
+        } else if (bins.selected_missing_step) |missing| {
+            run_step.dependOn(missing);
+        }
+    } else {
+        run_step.dependOn(&frontend_build.step);
+        run_step.dependOn(&app.run_cmd.step);
+    }
+
+    const dev_runner = b.addExecutable(.{
+        .name = "mini_dev_runner",
+        .root_module = b.createModule(.{
+            .root_source_file = b.path(b.fmt("{s}/src/tools/dev_runner.zig", .{layout.core_dir})),
+            .target = target,
+            .optimize = optimize,
+        }),
+    });
+    const run_dev = b.addRunArtifact(dev_runner);
+    run_dev.step.dependOn(&ensure_frontend_deps.step);
+    run_dev.step.dependOn(&app.gen_types_cmd.step);
+    run_dev.addDirectoryArg(frontend_dir);
+    run_dev.addArg(frontend_url orelse "http://127.0.0.1:5173");
+    run_dev.addFileArg(app.exe.getEmittedBin());
+
+    const dev_step = b.step("dev", "Run the desktop example against the local Vite dev server");
+    dev_step.dependOn(&run_dev.step);
+
+    const core_tests = b.addTest(.{
+        .root_module = b.createModule(.{
+            .root_source_file = b.path(b.fmt("{s}/src/command_runtime.zig", .{layout.core_dir})),
+            .target = target,
+            .optimize = optimize,
+        }),
+    });
+    const run_core_tests = b.addRunArtifact(core_tests);
+
+    const app_tests = b.addTest(.{ .root_module = app.exe.root_module });
+    const run_app_tests = b.addRunArtifact(app_tests);
+
+    const test_step = b.step("test", "Run tests");
+    test_step.dependOn(&run_core_tests.step);
+    test_step.dependOn(&run_app_tests.step);
+
+    b.getInstallStep().dependOn(&frontend_build.step);
+}
+
+pub fn build(b: *std.Build) void {
+    const target = b.standardTargetOptions(.{});
+    const optimize = b.standardOptimizeOption(.{});
+
+    addProjectSteps(b, target, optimize, .{
+        .core_dir = "../../core/mini",
+        .deps_dir = "../../deps",
+        .project_dir = ".",
+    });
 }

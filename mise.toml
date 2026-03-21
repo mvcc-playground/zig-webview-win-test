@@ -10,11 +10,11 @@ description = "Generate types, build the example frontend, and build the Zig exa
 run = "zig build"
 
 [tasks.build-frontend]
-description = "Build the Vite example frontend into example/app/dist"
+description = "Build the Vite example frontend into example/desktop-example/dist"
 run = "zig build build-frontend"
 
 [tasks.new-bin]
-description = "Create example/src-zig/bin/get-<name>.zig that prints mouse position"
+description = "Create example/desktop-example/src-zig/bin/get-<name>.zig that prints mouse position"
 run = "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/new-get-bin.ps1"
 
 [tasks.gen-types]
@@ -22,9 +22,9 @@ description = "Generate the example app TypeScript bridge from Zig commands"
 run = "zig build gen-types"
 
 [tasks."command:new"]
-description = "Create example/src-zig/commands/<name>.zig and register it in the example command module"
+description = "Create example/desktop-example/src-zig/commands/<name>.zig and register it in the example command module"
 run = "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/new-command.ps1"
 
 [tasks.bin]
-description = "Run example/src-zig/bin/<name>.zig as `mise run bin -- <name>`"
+description = "Run example/desktop-example/src-zig/bin/<name>.zig as `mise run bin -- <name>`"
 run = "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/run-bin.ps1"
