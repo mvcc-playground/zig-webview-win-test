@@ -1,13 +1,13 @@
 const std = @import("std");
 const bin_steps = @import("build/bin_steps.zig");
+const frontend_steps = @import("build/frontend_steps.zig");
+const webview_steps = @import("build/webview_steps.zig");
 
 pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
     const frontend_url = b.option([]const u8, "frontend-url", "Frontend dev URL override");
     const frontend_dist = b.option([]const u8, "frontend-dist", "Frontend dist index.html path override") orelse "dist/index.html";
-    const zigwin32 = b.dependency("zigwin32", .{});
-    const win32_module = zigwin32.module("win32");
 
     const app_module = b.addModule("zig_teste", .{
         .root_source_file = b.path("src-zig/root.zig"),
@@ -25,7 +25,6 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
         .imports = &.{
             .{ .name = "zig_teste", .module = app_module },
-            .{ .name = "win32", .module = win32_module },
         },
     });
     exe_root_module.addOptions("build_options", app_options);
@@ -34,8 +33,9 @@ pub fn build(b: *std.Build) void {
         .name = "zig_teste",
         .root_module = exe_root_module,
     });
-    linkMiniWebview(exe, b, target);
-    b.installArtifact(exe);
+    webview_steps.linkApp(exe, b, target);
+    const install_exe = b.addInstallArtifact(exe, .{});
+    b.getInstallStep().dependOn(&install_exe.step);
 
     const commands_module = b.createModule(.{
         .root_source_file = b.path("src-zig/commands/mod.zig"),
@@ -64,14 +64,13 @@ pub fn build(b: *std.Build) void {
         .target = target,
         .optimize = optimize,
         .app_module = app_module,
-        .win32_module = win32_module,
     });
 
     const run_step = b.step("run", "Run app, or use -Dbin=<name> to run src-zig/bin/<name>.zig");
     run_step.dependOn(&gen_types_cmd.step);
 
     const run_cmd = b.addRunArtifact(exe);
-    run_cmd.step.dependOn(b.getInstallStep());
+    run_cmd.step.dependOn(&install_exe.step);
     if (b.args) |args| run_cmd.addArgs(args);
 
     if (bins.selected_requested) {
@@ -84,47 +83,25 @@ pub fn build(b: *std.Build) void {
         run_step.dependOn(&run_cmd.step);
     }
 
+    const frontend = frontend_steps.add(b, &gen_types_cmd.step, &install_exe.step);
+    b.getInstallStep().dependOn(&gen_types_cmd.step);
+    b.getInstallStep().dependOn(&frontend.build_cmd.step);
+    if (frontend_url == null) {
+        run_cmd.step.dependOn(&frontend.build_cmd.step);
+    }
+
     const mod_tests = b.addTest(.{ .root_module = app_module });
     const run_mod_tests = b.addRunArtifact(mod_tests);
 
-    const exe_tests = b.addTest(.{ .root_module = exe.root_module });
-    const run_exe_tests = b.addRunArtifact(exe_tests);
-
     const test_step = b.step("test", "Run tests");
+    test_step.dependOn(&frontend.check.step);
     test_step.dependOn(&run_mod_tests.step);
-    test_step.dependOn(&run_exe_tests.step);
-}
-
-fn linkMiniWebview(exe: *std.Build.Step.Compile, b: *std.Build, target: std.Build.ResolvedTarget) void {
-    exe.addIncludePath(b.path("deps/webview/core/include"));
-    exe.addIncludePath(b.path("deps/mswebview2/include"));
-    exe.addIncludePath(b.path("deps/webview/compatibility/mingw/include"));
-    exe.addCSourceFile(.{
-        .file = b.path("src-zig/native/webview_bridge.cc"),
-        .flags = &.{ "-std=c++14", "-DWEBVIEW_STATIC" },
-    });
-    exe.linkLibCpp();
-
-    switch (target.result.os.tag) {
-        .windows => {
-            exe.linkSystemLibrary("advapi32");
-            exe.linkSystemLibrary("ole32");
-            exe.linkSystemLibrary("shell32");
-            exe.linkSystemLibrary("shlwapi");
-            exe.linkSystemLibrary("user32");
-            exe.linkSystemLibrary("version");
-        },
-        .macos => {
-            exe.linkFramework("Cocoa");
-            exe.linkFramework("WebKit");
-            exe.linkFramework("Foundation");
-            exe.linkSystemLibrary("dl");
-        },
-        .linux => {
-            exe.linkSystemLibrary("gtk-3");
-            exe.linkSystemLibrary("webkit2gtk-4.1");
-            exe.linkSystemLibrary("dl");
-        },
-        else => {},
+    if (webview_steps.hasSources()) {
+        const exe_tests = b.addTest(.{ .root_module = exe.root_module });
+        const run_exe_tests = b.addRunArtifact(exe_tests);
+        test_step.dependOn(&run_exe_tests.step);
+    } else {
+        const fail = b.addFail("Missing deps/webview sources. Run `git submodule update --init --recursive` before building native app targets.");
+        test_step.dependOn(&fail.step);
     }
 }

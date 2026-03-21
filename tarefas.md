@@ -1,52 +1,34 @@
-# Tarefas - Mini Tauri em Zig
+# Direcao Atual do Projeto
 
-Como vamos trabalhar:
-- Eu implemento **uma tarefa por vez**.
-- Você testa e responde: **funcionou** ou **não funcionou**.
-- Se precisar instalar algo, eu **te aviso antes** e explico.
+Base exploratoria para experimentar uma experiencia mini-tauri em Zig sem perder a camada de produto ja validada:
 
-## T1 - Janela + WebView local (primeira etapa)
-- Objetivo: abrir uma janela desktop e renderizar `web/index.html`.
-- Mínimo viável:
-  - Janela abre.
-  - HTML/CSS/JS simples renderiza.
-  - Um botão JS executa no navegador embutido.
-- Validação (você preenche): `pendente`
+- comandos Zig tipados;
+- geracao de tipos TypeScript;
+- client gerado consumido pelo frontend;
+- infraestrutura webview modularizada por baixo.
 
-## T2 - Estrutura base mini-tauri
-- Objetivo: organizar base para evoluir sem quebrar.
-- Mínimo viável:
-  - Criar `src/commands/`.
-  - Criar bootstrap de bridge JS <-> Zig.
-  - Carregamento de `web/index.html` centralizado.
-- Validação (você preenche): `pendente`
+## Estado atual
 
-## T3 - Comandos Zig tipados (lado nativo)
-- Objetivo: padrão de comandos públicos Zig em `src/commands/`.
-- Mínimo viável:
-  - Registrar comando `ping`.
-  - Entrada e saída tipadas no Zig.
-  - Log de execução no nativo.
-- Validação (você preenche): `pendente`
+- frontend Vite/React/TypeScript na raiz;
+- codigo Zig em `src-zig/`;
+- comandos registrados em `src-zig/commands/registry.zig`;
+- tipos e client gerados por `zig build gen-types`;
+- bridge global interna exposta como `window.__invoke__`;
+- frontend publico consumindo `src/lib/commands.ts`.
 
-## T4 - Invoke JS -> Zig
-- Objetivo: chamar comando Zig a partir do frontend.
-- Mínimo viável:
-  - `window.invoke("ping", payload)` funcionando.
-  - Resposta retornando para o JS.
-- Validação (você preenche): `pendente`
+## Limites intencionais
 
-## T5 - Tipagem no frontend
-- Objetivo: chamadas com contrato previsível no frontend.
-- Mínimo viável:
-  - Camada de tipos para o comando `ping`.
-  - Uso no frontend sem chamada “solta”.
-- Validação (você preenche): `pendente`
+- `happystraw/zig-webview` e referencia tecnica, nao dependencia direta neste momento;
+- a camada de comandos tipados continua sendo o nucleo do produto;
+- a migracao de `deps/webview` para dependencia Zig declarada fica para uma fase posterior.
 
-## T6 - Preparação para Vite (futuro próximo)
-- Objetivo: manter HTML simples hoje e permitir Vite depois.
-- Mínimo viável:
-  - Modo dev apontando para URL (futuro Vite dev server).
-  - Modo prod carregando arquivo local.
-- Validação (você preenche): `pendente`
+## Operacao basica
 
+- gerar artefatos: `zig build gen-types`
+- subir em dev: `mise run dev`
+- build completo: `mise run build`
+
+## Documentacao complementar
+
+- setup e validacao: `docs/notes/dev-setup.md`
+- politica de artefatos gerados: `docs/notes/generated-artifacts.md`

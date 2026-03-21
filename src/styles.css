@@ -127,6 +127,14 @@ button {
   background: linear-gradient(135deg, #364152, #52606d);
 }
 
+.actions button:nth-child(4) {
+  background: linear-gradient(135deg, #7c5c2e, #aa7f3a);
+}
+
+.actions button:nth-child(5) {
+  background: linear-gradient(135deg, #5b3f8c, #7f60ba);
+}
+
 .nav-link:hover,
 .cta-link:hover,
 .actions button:hover {

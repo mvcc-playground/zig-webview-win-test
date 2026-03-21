@@ -5,7 +5,6 @@ pub const Config = struct {
     target: std.Build.ResolvedTarget,
     optimize: std.builtin.OptimizeMode,
     app_module: *std.Build.Module,
-    win32_module: *std.Build.Module,
 };
 
 pub const Result = struct {
@@ -44,7 +43,6 @@ pub fn add(config: Config) Result {
                     .optimize = config.optimize,
                     .imports = &.{
                         .{ .name = "zig_teste", .module = config.app_module },
-                        .{ .name = "win32", .module = config.win32_module },
                     },
                 }),
             });

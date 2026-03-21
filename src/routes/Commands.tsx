@@ -5,6 +5,7 @@ import { InvokeRuntimeError } from "../lib/invoke";
 export function CommandsRoute() {
   const [message, setMessage] = useState("hello from React + TypeScript");
   const [lastName, setLastName] = useState("silva");
+  const [text, setText] = useState("echo from generated client");
   const [output, setOutput] = useState("Aguardando chamada...");
 
   async function runPing() {
@@ -28,6 +29,24 @@ export function CommandsRoute() {
   async function runSub() {
     try {
       const data = await commands.sub(21, 12);
+      setOutput(JSON.stringify(data, null, 2));
+    } catch (error) {
+      setOutput(formatError(error));
+    }
+  }
+
+  async function runEcho() {
+    try {
+      const data = await commands.echo({ text });
+      setOutput(JSON.stringify(data, null, 2));
+    } catch (error) {
+      setOutput(formatError(error));
+    }
+  }
+
+  async function runHealth() {
+    try {
+      const data = await commands.health();
       setOutput(JSON.stringify(data, null, 2));
     } catch (error) {
       setOutput(formatError(error));
@@ -70,11 +89,20 @@ export function CommandsRoute() {
             onChange={(event) => setLastName(event.currentTarget.value)}
           />
         </label>
+        <label className="field">
+          <span>Echo text</span>
+          <input
+            value={text}
+            onChange={(event) => setText(event.currentTarget.value)}
+          />
+        </label>
 
         <div className="actions">
           <button onClick={runPing}>Ping</button>
           <button onClick={runSum}>Sum 12 + 21</button>
           <button onClick={runSub}>Sub 21 - 12</button>
+          <button onClick={runEcho}>Echo</button>
+          <button onClick={runHealth}>Health</button>
           <button onClick={runGetLastName}>getLastName</button>
           <button onClick={runGetFullName}>getFullName</button>
         </div>

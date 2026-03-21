@@ -3,15 +3,15 @@ zig = "0.15.2"
 
 [tasks.dev]
 description = "Start Vite dev server and run the Zig app"
-run = "node ./scripts/dev.mjs"
+run = "zig build dev"
 
 [tasks.build]
 description = "Generate types, build the static frontend, and build the Zig app"
-run = "node ./scripts/build.mjs"
+run = "zig build"
 
 [tasks.build-frontend]
 description = "Build the Vite frontend into dist"
-run = "node ./scripts/build-frontend.mjs"
+run = "zig build frontend"
 
 [tasks.new-bin]
 description = "Create src-zig/bin/get-<name>.zig that prints mouse position"

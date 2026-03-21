@@ -52,7 +52,7 @@ export async function invoke<T extends keyof CommandMap>(
   ...args: CommandArgs<T>
 ): Promise<CommandReturn<T>> {
   try {
-    return await window.invoke(command, ...args);
+    return await window.__invoke__(command, ...args);
   } catch (error) {
     throw normalizeInvokeError(error);
   }

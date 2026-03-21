@@ -15,8 +15,9 @@ export function HomeRoute() {
       <div className="card">
         <p className="section-label">Next</p>
         <p>
-          Abra a area de comandos para testar <code>ping</code>,{" "}
-          <code>sum</code> e <code>sub</code> pelo bridge nativo.
+          Abra a area de comandos para testar o client gerado com{" "}
+          <code>ping</code>, <code>sum</code>, <code>sub</code>,{" "}
+          <code>echo</code>, <code>health</code> e comandos de identidade.
         </p>
         <Link href="/commands" className="cta-link">
           Ir para Commands
