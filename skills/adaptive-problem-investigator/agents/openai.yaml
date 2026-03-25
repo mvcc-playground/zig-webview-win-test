@@ -1,0 +1,7 @@
+interface:
+  display_name: "Adaptive Problem Investigator"
+  short_description: "Investigacao iterativa para bugs e features."
+  default_prompt: "Use $adaptive-problem-investigator para investigar causa raiz, pesquisar com ciclos tecnicos e implementar uma solucao validada."
+
+policy:
+  allow_implicit_invocation: true
