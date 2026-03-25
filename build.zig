@@ -7,7 +7,7 @@ pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
     const frontend_url = b.option([]const u8, "frontend-url", "Frontend dev URL override");
-    const frontend_dist = b.option([]const u8, "frontend-dist", "Frontend dist index.html path override") orelse "dist/index.html";
+    const frontend_dist = b.option([]const u8, "frontend-dist", "Frontend dist index.html path override") orelse "dist/minibar.html";
 
     const app_module = b.addModule("zig_teste", .{
         .root_source_file = b.path("src-zig/root.zig"),
@@ -37,12 +37,6 @@ pub fn build(b: *std.Build) void {
     const install_exe = b.addInstallArtifact(exe, .{});
     b.getInstallStep().dependOn(&install_exe.step);
 
-    const commands_module = b.createModule(.{
-        .root_source_file = b.path("src-zig/commands/mod.zig"),
-        .target = target,
-        .optimize = optimize,
-    });
-
     const gen_types_exe = b.addExecutable(.{
         .name = "gen_ts_types",
         .root_module = b.createModule(.{
@@ -51,10 +45,10 @@ pub fn build(b: *std.Build) void {
             .optimize = optimize,
             .imports = &.{
                 .{ .name = "zig_teste", .module = app_module },
-                .{ .name = "commands", .module = commands_module },
             },
         }),
     });
+    webview_steps.linkApp(gen_types_exe, b, target);
     const gen_types_cmd = b.addRunArtifact(gen_types_exe);
     const gen_types_step = b.step("gen-types", "Generate TypeScript type definitions for invoke");
     gen_types_step.dependOn(&gen_types_cmd.step);
@@ -91,6 +85,9 @@ pub fn build(b: *std.Build) void {
     }
 
     const mod_tests = b.addTest(.{ .root_module = app_module });
+    if (webview_steps.hasSources()) {
+        webview_steps.linkApp(mod_tests, b, target);
+    }
     const run_mod_tests = b.addRunArtifact(mod_tests);
 
     const test_step = b.step("test", "Run tests");

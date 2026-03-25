@@ -54,7 +54,7 @@ fn addDevOrchestrator(b: *std.Build) *std.Build.Step {
             "$port=5173; " ++
             "$existing=(Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction SilentlyContinue | Select-Object -ExpandProperty OwningProcess -Unique); " ++
             "if ($existing) { taskkill /PID $existing /T /F | Out-Null }; " ++
-            "$vite=Start-Process bun -ArgumentList 'run','dev' -WorkingDirectory $root -PassThru; " ++
+            "$vite=Start-Process cmd -ArgumentList '/c','bun run dev' -WorkingDirectory $root -WindowStyle Hidden -PassThru; " ++
             "try { " ++
             "  $ready=$false; " ++
             "  for ($i=0; $i -lt 80; $i++) { " ++

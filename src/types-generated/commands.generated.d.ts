@@ -10,6 +10,9 @@ export type CommandMap = {
   'sub': { args: [number, number]; result: number };
   'getLastName': { args: [string]; result: string };
   'getFullName': { args: [string]; result: { text: string; } | { error: { message: string; }; } };
+  'get_ui_bootstrap': { args: [{ window_kind: 'minibar' | 'control_panel'; }]; result: { window_kind: 'minibar' | 'control_panel'; ui_status: 'ready' | 'recording' | 'processing' | 'inserted' | 'error'; trace_id: string; session_id?: string | null; runtime_mode: 'native_multi_window'; control_panel_url: string; } };
+  'log_client_event': { args: [{ level: 'DEBUG' | 'INFO' | 'WARN' | 'ERROR'; trace_id: string; session_id?: string | null; module: string; event: string; message: string; error?: string | null; stack?: string | null; metadata_json?: string | null; }]; result: { accepted: boolean; } };
+  'open_control_panel': { args: []; result: { opened: boolean; runtime_mode: 'native_multi_window'; } };
 };
 
 export type CommandArgs<T extends keyof CommandMap> = CommandMap[T]['args'];

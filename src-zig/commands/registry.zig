@@ -9,6 +9,7 @@ pub const registered_modules = .{
     @import("multiplication.zig"),
     @import("math.zig"),
     @import("identity.zig"),
+    @import("ui_shell.zig"),
     // @modules:end
 };
 

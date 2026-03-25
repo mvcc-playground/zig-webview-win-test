@@ -13,6 +13,9 @@ declare global {
     __invoke__(command: 'sub', a: number, b: number): Promise<CommandReturn<'sub'>>;
     __invoke__(command: 'getLastName', lastName: string): Promise<CommandReturn<'getLastName'>>;
     __invoke__(command: 'getFullName', lastName: string): Promise<CommandReturn<'getFullName'>>;
+    __invoke__(command: 'get_ui_bootstrap', input: { window_kind: 'minibar' | 'control_panel'; }): Promise<CommandReturn<'get_ui_bootstrap'>>;
+    __invoke__(command: 'log_client_event', input: { level: 'DEBUG' | 'INFO' | 'WARN' | 'ERROR'; trace_id: string; session_id?: string | null; module: string; event: string; message: string; error?: string | null; stack?: string | null; metadata_json?: string | null; }): Promise<CommandReturn<'log_client_event'>>;
+    __invoke__(command: 'open_control_panel'): Promise<CommandReturn<'open_control_panel'>>;
     __invoke__<T extends keyof CommandMap>(
       command: T,
       ...args: CommandArgs<T>

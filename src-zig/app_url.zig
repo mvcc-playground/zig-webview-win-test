@@ -1,16 +1,36 @@
 const std = @import("std");
 const build_options = @import("build_options");
 
+pub const Surface = enum {
+    minibar,
+    control_panel,
+};
+
 pub fn resolve(allocator: std.mem.Allocator) ![:0]u8 {
-    if (try envUrl(allocator, "FRONTEND_URL")) |url| return url;
-    if (build_options.frontend_url) |url| return try dupZ(allocator, url);
+    return resolveSurface(allocator, .minibar);
+}
+
+pub fn resolveSurface(allocator: std.mem.Allocator, surface: Surface) ![:0]u8 {
+    const html_name = surfaceHtmlName(surface);
+
+    if (try envUrl(allocator, "FRONTEND_URL")) |base_url| {
+        defer allocator.free(base_url);
+        return try joinUrl(allocator, base_url, html_name);
+    }
+    if (build_options.frontend_url) |base_url| {
+        return try joinUrl(allocator, base_url, html_name);
+    }
 
     if (try envUrl(allocator, "FRONTEND_DIST")) |dist_path| {
         defer allocator.free(dist_path);
-        return htmlFileUrl(allocator, dist_path);
+        const surface_path = try siblingPath(allocator, dist_path, html_name);
+        defer allocator.free(surface_path);
+        return htmlFileUrl(allocator, surface_path);
     }
 
-    return htmlFileUrl(allocator, build_options.frontend_dist);
+    const default_path = try siblingPath(allocator, build_options.frontend_dist, html_name);
+    defer allocator.free(default_path);
+    return htmlFileUrl(allocator, default_path);
 }
 
 fn envUrl(allocator: std.mem.Allocator, name: []const u8) !?[:0]u8 {
@@ -50,4 +70,25 @@ fn htmlFileUrl(allocator: std.mem.Allocator, rel_path: []const u8) ![:0]u8 {
     @memcpy(out[prefix.len..out_len], normalized);
     out[out_len] = 0;
     return out[0..out_len :0];
+}
+
+fn surfaceHtmlName(surface: Surface) []const u8 {
+    return switch (surface) {
+        .minibar => "minibar.html",
+        .control_panel => "control-panel.html",
+    };
+}
+
+fn joinUrl(allocator: std.mem.Allocator, base_url: []const u8, html_name: []const u8) ![:0]u8 {
+    const trimmed = std.mem.trimRight(u8, base_url, "/");
+    const joined = try std.fmt.allocPrint(allocator, "{s}/{s}", .{ trimmed, html_name });
+    defer allocator.free(joined);
+    return dupZ(allocator, joined);
+}
+
+fn siblingPath(allocator: std.mem.Allocator, any_path: []const u8, html_name: []const u8) ![]u8 {
+    if (std.fs.path.dirname(any_path)) |dir| {
+        return std.fs.path.join(allocator, &.{ dir, html_name });
+    }
+    return allocator.dupe(u8, html_name);
 }

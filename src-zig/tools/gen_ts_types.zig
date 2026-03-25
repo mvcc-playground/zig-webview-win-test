@@ -1,5 +1,5 @@
 const std = @import("std");
-const commands = @import("commands");
+const commands = @import("zig_teste").commands;
 
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};

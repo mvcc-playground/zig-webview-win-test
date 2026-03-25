@@ -58,6 +58,26 @@ pub const Webview = struct {
     }
 };
 
+pub const InvokeHandler = *const fn ([*:0]const u8, [*]u8, usize) callconv(.c) c_int;
+
+pub fn configureInvokeHandler(handler: InvokeHandler) void {
+    mini_webview_set_invoke_handler(handler);
+}
+
+pub fn runShell(minibar_url: [:0]const u8, control_panel_url: [:0]const u8, debug: bool) !void {
+    const exit_code = mini_webview_run_shell(
+        if (debug) 1 else 0,
+        minibar_url.ptr,
+        control_panel_url.ptr,
+    );
+    if (exit_code != 0) return error.WebviewRunFailed;
+}
+
+pub fn openControlPanel() !void {
+    const exit_code = mini_webview_open_control_panel();
+    if (exit_code != 0) return error.ControlPanelUnavailable;
+}
+
 extern fn mini_webview_run_app(
     debug: c_int,
     title: [*:0]const u8,
@@ -66,3 +86,12 @@ extern fn mini_webview_run_app(
     hint: c_int,
     start_url: [*:0]const u8,
 ) callconv(.c) c_int;
+
+extern fn mini_webview_run_shell(
+    debug: c_int,
+    minibar_url: [*:0]const u8,
+    control_panel_url: [*:0]const u8,
+) callconv(.c) c_int;
+
+extern fn mini_webview_open_control_panel() callconv(.c) c_int;
+extern fn mini_webview_set_invoke_handler(handler: InvokeHandler) callconv(.c) void;

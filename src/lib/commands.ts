@@ -13,6 +13,9 @@ export type CommandClient = {
   sub: (a: number, b: number) => Promise<CommandReturn<'sub'>>;
   getLastName: (lastName: string) => Promise<CommandReturn<'getLastName'>>;
   getFullName: (lastName: string) => Promise<CommandReturn<'getFullName'>>;
+  get_ui_bootstrap: (input: { window_kind: 'minibar' | 'control_panel'; }) => Promise<CommandReturn<'get_ui_bootstrap'>>;
+  log_client_event: (input: { level: 'DEBUG' | 'INFO' | 'WARN' | 'ERROR'; trace_id: string; session_id?: string | null; module: string; event: string; message: string; error?: string | null; stack?: string | null; metadata_json?: string | null; }) => Promise<CommandReturn<'log_client_event'>>;
+  open_control_panel: () => Promise<CommandReturn<'open_control_panel'>>;
 };
 
 export const commands: CommandClient = {
@@ -26,4 +29,7 @@ export const commands: CommandClient = {
   sub: async (a: number, b: number) => invoke('sub', a, b),
   getLastName: async (lastName: string) => invoke('getLastName', lastName),
   getFullName: async (lastName: string) => invoke('getFullName', lastName),
+  get_ui_bootstrap: async (input: { window_kind: 'minibar' | 'control_panel'; }) => invoke('get_ui_bootstrap', input),
+  log_client_event: async (input: { level: 'DEBUG' | 'INFO' | 'WARN' | 'ERROR'; trace_id: string; session_id?: string | null; module: string; event: string; message: string; error?: string | null; stack?: string | null; metadata_json?: string | null; }) => invoke('log_client_event', input),
+  open_control_panel: async () => invoke('open_control_panel'),
 };
