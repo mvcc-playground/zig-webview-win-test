@@ -53,12 +53,20 @@ export function MiniBarApp() {
   return (
     <main className="minibar-shell">
       <section className="minibar">
+        <div className="future-controls" aria-label="Future controls">
+          <button type="button" className="ghost-btn" disabled title="Recording settings (coming soon)">
+            Rec
+          </button>
+          <button type="button" className="ghost-btn" disabled title="Model selection (coming soon)">
+            GPT
+          </button>
+        </div>
         <div className="status">
           <span className="dot" />
           <strong>{boot?.ui_status ?? "loading"}</strong>
         </div>
         <button type="button" onClick={handleOpenPanel} disabled={!boot || busy}>
-          Open Panel
+          Open Settings
         </button>
       </section>
       {error && <p className="error">{error}</p>}

@@ -8,6 +8,9 @@
 namespace {
 constexpr int kHotkeyIdToggleMiniBar = 1001;
 constexpr int kBottomMarginPx = 16;
+constexpr int kDefaultMiniBarWidth = 620;
+constexpr int kDefaultMiniBarHeight = 104;
+constexpr int kMiniBarCornerRadius = 28;
 
 struct NativeState {
   webview_t minibar = nullptr;
@@ -16,6 +19,8 @@ struct NativeState {
   HWND panel_hwnd = nullptr;
   WNDPROC minibar_prev_wndproc = nullptr;
   bool minibar_visible = true;
+  int minibar_width = kDefaultMiniBarWidth;
+  int minibar_height = kDefaultMiniBarHeight;
 };
 
 NativeState g_state;
@@ -38,6 +43,24 @@ void position_minibar(HWND hwnd, int width, int height) {
                SWP_NOACTIVATE | SWP_FRAMECHANGED | SWP_SHOWWINDOW);
 }
 
+int env_int_or_default(const char *name, int fallback) {
+  char buf[32]{};
+  DWORD len = GetEnvironmentVariableA(name, buf, sizeof(buf));
+  if (len == 0 || len >= sizeof(buf)) {
+    return fallback;
+  }
+  int value = atoi(buf);
+  return value > 0 ? value : fallback;
+}
+
+void apply_round_region(HWND hwnd, int width, int height) {
+  HRGN region = CreateRoundRectRgn(0, 0, width, height, kMiniBarCornerRadius,
+                                   kMiniBarCornerRadius);
+  if (region) {
+    SetWindowRgn(hwnd, region, TRUE);
+  }
+}
+
 void style_minibar(HWND hwnd, int width, int height) {
   LONG_PTR style = GetWindowLongPtrW(hwnd, GWL_STYLE);
   style &= ~(WS_CAPTION | WS_THICKFRAME | WS_MINIMIZEBOX | WS_MAXIMIZEBOX |
@@ -49,6 +72,7 @@ void style_minibar(HWND hwnd, int width, int height) {
   exstyle |= WS_EX_TOPMOST | WS_EX_TOOLWINDOW;
   SetWindowLongPtrW(hwnd, GWL_EXSTYLE, exstyle);
 
+  apply_round_region(hwnd, width, height);
   position_minibar(hwnd, width, height);
 }
 
@@ -58,9 +82,7 @@ LRESULT CALLBACK minibar_wndproc(HWND hwnd, UINT msg, WPARAM wparam,
     g_state.minibar_visible = !g_state.minibar_visible;
     if (g_state.minibar_visible) {
       ShowWindow(hwnd, SW_SHOWNOACTIVATE);
-      RECT rect{};
-      GetWindowRect(hwnd, &rect);
-      position_minibar(hwnd, rect.right - rect.left, rect.bottom - rect.top);
+      position_minibar(hwnd, g_state.minibar_width, g_state.minibar_height);
     } else {
       ShowWindow(hwnd, SW_HIDE);
     }
@@ -119,6 +141,11 @@ extern "C" int mini_webview_open_control_panel() {
 extern "C" int mini_webview_run_shell(int debug, const char *minibar_url,
                                       const char *control_panel_url) {
   g_state = NativeState{};
+  SetEnvironmentVariableA("WEBVIEW2_DEFAULT_BACKGROUND_COLOR", "00FFFFFF");
+  g_state.minibar_width =
+      env_int_or_default("MINIBAR_WIDTH", kDefaultMiniBarWidth);
+  g_state.minibar_height =
+      env_int_or_default("MINIBAR_HEIGHT", kDefaultMiniBarHeight);
 
   g_state.minibar = webview_create(debug, NULL);
   g_state.panel = webview_create(debug, NULL);
@@ -134,7 +161,8 @@ extern "C" int mini_webview_run_shell(int debug, const char *minibar_url,
   }
 
   webview_set_title(g_state.minibar, "MiniBar");
-  webview_set_size(g_state.minibar, 460, 98, WEBVIEW_HINT_FIXED);
+  webview_set_size(g_state.minibar, g_state.minibar_width, g_state.minibar_height,
+                   WEBVIEW_HINT_FIXED);
   webview_bind(g_state.minibar, "__invoke__", invoke_handler, g_state.minibar);
   webview_navigate(g_state.minibar, minibar_url);
 
@@ -155,7 +183,8 @@ extern "C" int mini_webview_run_shell(int debug, const char *minibar_url,
     return 1;
   }
 
-  style_minibar(g_state.minibar_hwnd, 460, 98);
+  style_minibar(g_state.minibar_hwnd, g_state.minibar_width,
+                g_state.minibar_height);
   g_state.minibar_prev_wndproc = reinterpret_cast<WNDPROC>(
       SetWindowLongPtrW(g_state.minibar_hwnd, GWLP_WNDPROC,
                         reinterpret_cast<LONG_PTR>(minibar_wndproc)));

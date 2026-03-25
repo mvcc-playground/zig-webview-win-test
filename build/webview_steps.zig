@@ -20,6 +20,7 @@ pub fn linkApp(exe: *std.Build.Step.Compile, b: *std.Build, target: std.Build.Re
     switch (target.result.os.tag) {
         .windows => {
             exe.linkSystemLibrary("advapi32");
+            exe.linkSystemLibrary("gdi32");
             exe.linkSystemLibrary("ole32");
             exe.linkSystemLibrary("shell32");
             exe.linkSystemLibrary("shlwapi");
