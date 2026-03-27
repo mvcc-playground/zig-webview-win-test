@@ -18,6 +18,7 @@ struct NativeState {
   HWND minibar_hwnd = nullptr;
   HWND panel_hwnd = nullptr;
   WNDPROC minibar_prev_wndproc = nullptr;
+  WNDPROC panel_prev_wndproc = nullptr;
   bool minibar_visible = true;
   int minibar_width = kDefaultMiniBarWidth;
   int minibar_height = kDefaultMiniBarHeight;
@@ -76,6 +77,23 @@ void style_minibar(HWND hwnd, int width, int height) {
   position_minibar(hwnd, width, height);
 }
 
+LRESULT CALLBACK panel_wndproc(HWND hwnd, UINT msg, WPARAM wparam,
+                               LPARAM lparam) {
+  if (msg == WM_CLOSE) {
+    ShowWindow(hwnd, SW_HIDE);
+    return 0;
+  }
+
+  if (msg == WM_DESTROY) {
+    g_state.panel_hwnd = nullptr;
+  }
+
+  if (g_state.panel_prev_wndproc) {
+    return CallWindowProcW(g_state.panel_prev_wndproc, hwnd, msg, wparam, lparam);
+  }
+  return DefWindowProcW(hwnd, msg, wparam, lparam);
+}
+
 LRESULT CALLBACK minibar_wndproc(HWND hwnd, UINT msg, WPARAM wparam,
                                  LPARAM lparam) {
   if (msg == WM_HOTKEY && static_cast<int>(wparam) == kHotkeyIdToggleMiniBar) {
@@ -127,7 +145,7 @@ extern "C" void mini_webview_set_invoke_handler(invoke_fn_t fn) {
 }
 
 extern "C" int mini_webview_open_control_panel() {
-  if (!g_state.panel_hwnd) {
+  if (!g_state.panel_hwnd || !IsWindow(g_state.panel_hwnd)) {
     return 1;
   }
   ShowWindow(g_state.panel_hwnd, SW_SHOW);
@@ -188,6 +206,9 @@ extern "C" int mini_webview_run_shell(int debug, const char *minibar_url,
   g_state.minibar_prev_wndproc = reinterpret_cast<WNDPROC>(
       SetWindowLongPtrW(g_state.minibar_hwnd, GWLP_WNDPROC,
                         reinterpret_cast<LONG_PTR>(minibar_wndproc)));
+  g_state.panel_prev_wndproc = reinterpret_cast<WNDPROC>(
+      SetWindowLongPtrW(g_state.panel_hwnd, GWLP_WNDPROC,
+                        reinterpret_cast<LONG_PTR>(panel_wndproc)));
   install_hotkey(g_state.minibar_hwnd);
 
   ShowWindow(g_state.panel_hwnd, SW_HIDE);
